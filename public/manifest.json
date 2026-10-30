@@ -1,0 +1,77 @@
+{
+  "name": "HabiVenture",
+  "short_name": "HabiVenture",
+  "description": "Interactive two-player habit adventure with dynamic mascots, daily goals, streaks, and transparent scoring.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "id": "/?source=pwa",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070B09",
+  "theme_color": "#070B09",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "productivity",
+    "lifestyle",
+    "health"
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Today's Goals",
+      "short_name": "Goals",
+      "description": "View and record today's habit completions",
+      "url": "/?tab=today",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Decision Wheel",
+      "short_name": "Decide",
+      "description": "Spin the fair decision wheel",
+      "url": "/?tab=wheel",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Cycle Standings",
+      "short_name": "Cycles",
+      "description": "Check current cycle scoreboard and winner history",
+      "url": "/?tab=standings",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
