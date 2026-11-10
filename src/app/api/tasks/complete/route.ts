@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ScoreEngine } from "@/services/scoreEngine";
 import { dataStore } from "@/services/supabaseStore";
+import { getTodayDateString, getWeekRange } from "@/utils/dateFormatter";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,10 +27,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { taskId, date, userId } = body;
+    const targetDate = (date && String(date).trim()) || getTodayDateString();
 
-    if (!taskId || !date || !userId) {
+    if (!taskId || !targetDate || !userId) {
       return jsonResponse(
-        { error: "taskId, date, and userId are required." },
+        { error: "taskId and userId are required." },
         { status: 400 }
       );
     }
@@ -63,19 +65,11 @@ export async function POST(request: Request) {
 
     const isWeekly = task.frequency !== "daily" && task.frequency !== "cycle" && (task.target_days_per_week ? task.target_days_per_week < 7 : false);
     if (isWeekly && task.target_days_per_week) {
-      const d = new Date(date);
-      const day = d.getDay();
-      const diff = day === 0 ? -6 : 1 - day;
-      const monday = new Date(d);
-      monday.setDate(d.getDate() + diff);
-      const mondayStr = monday.toISOString().split("T")[0];
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      const sundayStr = sunday.toISOString().split("T")[0];
+      const { mondayStr, sundayStr } = getWeekRange(targetDate);
 
       const recentLogs = await dataStore.getRecentLogs(300);
       const otherDayLogsThisWeek = recentLogs.filter(
-        (l) => l.user_id === Number(userId) && l.task_id === Number(taskId) && l.status === "completed" && l.date >= mondayStr && l.date <= sundayStr && l.date !== date
+        (l) => l.user_id === Number(userId) && l.task_id === Number(taskId) && l.status === "completed" && l.date >= mondayStr && l.date <= sundayStr && l.date !== targetDate
       );
       const uniqueDays = new Set(otherDayLogsThisWeek.map((l) => l.date));
 
@@ -91,7 +85,7 @@ export async function POST(request: Request) {
       cycleId: Number(cycle.id),
       userId: Number(userId),
       taskId: Number(taskId),
-      date,
+      date: targetDate,
       preloadedCycle: cycle,
       preloadedTask: task,
     });

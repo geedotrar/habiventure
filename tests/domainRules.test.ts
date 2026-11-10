@@ -1,7 +1,7 @@
 import { describe, test, expect } from "vitest";
 import bcrypt from "bcryptjs";
 import { isEverydayTask, getCycleKeyForDate } from "@/services/streakEngine";
-import { formatCycleDateRange, formatDaysRemaining } from "@/utils/dateFormatter";
+import { formatCycleDateRange, formatDaysRemaining, getTodayDateString, formatDateString, getWeekRange, APP_TIMEZONE } from "@/utils/dateFormatter";
 import { getStreakTier, STREAK_TIERS } from "@/components/StreakFlame";
 import { SCORING_RULES, SCORE_REASON_TEMPLATES } from "@/config/scoring";
 import { demoStore } from "@/services/demoStore";
@@ -116,6 +116,35 @@ describe("domain utilities", () => {
       expect(formatDaysRemaining(1)).toBe("1 day left");
       expect(formatDaysRemaining(5)).toBe("5 days left");
       expect(formatDaysRemaining(undefined)).toBe("");
+    });
+
+    test("getTodayDateString returns valid YYYY-MM-DD format", () => {
+      const today = getTodayDateString();
+      expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(APP_TIMEZONE).toBe("Asia/Jakarta");
+    });
+
+    test("formatDateString correctly calculates WIB local midnight shift", () => {
+      const pastMidnightUtc = new Date("2026-11-09T17:30:00Z");
+      expect(formatDateString(pastMidnightUtc, "Asia/Jakarta")).toBe("2026-11-10");
+      expect(formatDateString(pastMidnightUtc, "UTC")).toBe("2026-11-09");
+    });
+
+    test("getWeekRange returns Monday through Sunday for given date", () => {
+      const tuesday = getWeekRange("2026-11-10");
+      expect(tuesday.mondayStr).toBe("2026-11-09");
+      expect(tuesday.sundayStr).toBe("2026-11-15");
+      expect(tuesday.weekDates.length).toBe(7);
+      expect(tuesday.weekDates[0]).toBe("2026-11-09");
+      expect(tuesday.weekDates[6]).toBe("2026-11-15");
+
+      const sunday = getWeekRange("2026-11-15");
+      expect(sunday.mondayStr).toBe("2026-11-09");
+      expect(sunday.sundayStr).toBe("2026-11-15");
+
+      const nextMonday = getWeekRange("2026-11-16");
+      expect(nextMonday.mondayStr).toBe("2026-11-16");
+      expect(nextMonday.sundayStr).toBe("2026-11-22");
     });
   });
 

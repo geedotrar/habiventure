@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { dataStore } from "@/services/supabaseStore";
 import { ScoreEngine } from "@/services/scoreEngine";
 import { StreakEngine } from "@/services/streakEngine";
+import { getTodayDateString, getWeekRange } from "@/utils/dateFormatter";
 import type { ScoreEvent, DailyLog, User, Pair } from "@/types/domain";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const todayDate = new Date().toISOString().split("T")[0];
+    const todayDate = getTodayDateString();
 
     const pairs = dataStore.getPairs ? await dataStore.getPairs() : [];
     const [users, tasks, allCycles] = await Promise.all([
@@ -154,24 +155,13 @@ export async function GET(request: Request) {
     const teamStreak = teamStreakDetails.streak;
     const partnerStreak = partnerStreakDetails.streak;
 
-    const todayObj = new Date(todayDate);
-    const dayOfWeek = todayObj.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const mondayDate = new Date(todayObj);
-    mondayDate.setDate(todayObj.getDate() + mondayOffset);
-
-    const mondayStr = mondayDate.toISOString().split("T")[0];
-    const sundayDate = new Date(mondayDate);
-    sundayDate.setDate(mondayDate.getDate() + 6);
-    const sundayStr = sundayDate.toISOString().split("T")[0];
-
+    const { mondayStr, sundayStr, weekDates } = getWeekRange(todayDate);
     const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
     const weekStreakDays = [];
     for (let i = 0; i < 7; i++) {
-      const d = new Date(mondayDate);
-      d.setDate(mondayDate.getDate() + i);
-      const iso = d.toISOString().split("T")[0];
+      const iso = weekDates[i];
+      const dateNum = Number(iso.split("-")[2]);
 
       const userLogsForDay = historyLogs.filter(
         (l) => l.user_id === currentUser?.id && l.date === iso && l.status === "completed"
@@ -196,7 +186,7 @@ export async function GET(request: Request) {
 
       weekStreakDays.push({
         date: iso,
-        dateNum: d.getDate(),
+        dateNum,
         dayLabel: dayLabels[i],
         dayLabelEn: dayLabels[i],
         completedCount: userEverydayCount,

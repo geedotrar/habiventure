@@ -1,4 +1,5 @@
 import type { DailyLog, Task, Cycle } from "@/types/domain";
+import { getTodayDateString } from "@/utils/dateFormatter";
 
 export function isEverydayTask(task: Task): boolean {
   if (task.is_personal) return false;
@@ -41,7 +42,7 @@ export class StreakEngine {
     userId: number,
     tasks: Task[],
     logs: DailyLog[],
-    referenceDateStr: string = this.formatDate(new Date()),
+    referenceDateStr: string = getTodayDateString(),
     cycles: Cycle[] = [],
     maxProtectsPerCycle: number = 3
   ): StreakDetails {
@@ -143,7 +144,7 @@ export class StreakEngine {
     userId: number,
     tasks: Task[],
     logs: DailyLog[],
-    referenceDateStr: string = this.formatDate(new Date()),
+    referenceDateStr: string = getTodayDateString(),
     cycles: Cycle[] = [],
     maxProtectsPerCycle: number = 3
   ): number {
@@ -161,7 +162,7 @@ export class StreakEngine {
     userIds: number[],
     tasks: Task[],
     logs: DailyLog[],
-    referenceDateStr: string = this.formatDate(new Date()),
+    referenceDateStr: string = getTodayDateString(),
     cycles: Cycle[] = [],
     maxProtectsPerCycle: number = 3
   ): StreakDetails {
@@ -281,7 +282,7 @@ export class StreakEngine {
     userIds: number[],
     tasks: Task[],
     logs: DailyLog[],
-    referenceDateStr: string = this.formatDate(new Date()),
+    referenceDateStr: string = getTodayDateString(),
     cycles: Cycle[] = [],
     maxProtectsPerCycle: number = 3
   ): number {
@@ -299,7 +300,7 @@ export class StreakEngine {
     userId: number,
     taskId: number,
     logs: DailyLog[],
-    referenceDateStr: string = this.formatDate(new Date())
+    referenceDateStr: string = getTodayDateString()
   ): number {
     const completedDates = new Set<string>();
     for (const log of logs) {

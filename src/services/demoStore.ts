@@ -1,4 +1,5 @@
 import { StreakEngine, isEverydayTask } from "./streakEngine";
+import { getTodayDateString, getWeekRange } from "@/utils/dateFormatter";
 import { SCORING_RULES, SCORE_REASON_TEMPLATES } from "@/config/scoring";
 import type {
   User,
@@ -388,13 +389,12 @@ class DemoStore {
     const playerA = regularUsers[0] || null;
     const playerB = regularUsers[1] || null;
 
-    const todayDate = StreakEngine.formatDate(new Date());
+    const todayDate = getTodayDateString();
     const activeCycle = this.state.activeCycle;
 
-    const endDate = new Date(activeCycle.end_date);
-    const today = new Date();
-    const diffTime = endDate.getTime() - today.getTime();
-    const daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    const end = new Date(activeCycle.end_date).getTime();
+    const now = new Date(todayDate).getTime();
+    const daysRemaining = Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)));
 
     const visibleTasks = this.state.tasks.filter((t) => {
       if (!t.active) return false;
@@ -412,15 +412,7 @@ class DemoStore {
 
     const todayLogs = this.state.dailyLogs.filter((l) => l.date === todayDate);
 
-    const now = new Date();
-    const dayOfWeek = (now.getDay() + 6) % 7;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - dayOfWeek);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-
-    const mondayStr = StreakEngine.formatDate(monday);
-    const sundayStr = StreakEngine.formatDate(sunday);
+    const { mondayStr, sundayStr, weekDates } = getWeekRange(todayDate);
 
     const weeklyProgress: Record<
       number,
@@ -541,9 +533,7 @@ class DemoStore {
 
     const weekStreakDays = [];
     for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const dStr = StreakEngine.formatDate(d);
+      const dStr = weekDates[i];
       const userLogsForDay = this.state.dailyLogs.filter(
         (l) => l.user_id === currentUser.id && l.date === dStr && l.status === "completed"
       );
@@ -568,7 +558,7 @@ class DemoStore {
 
       weekStreakDays.push({
         date: dStr,
-        dateNum: d.getDate(),
+        dateNum: Number(dStr.split("-")[2]),
         dayLabel: dayLabels[i],
         dayLabelEn: dayLabels[i],
         completedCount: userEverydayCount,
@@ -695,7 +685,7 @@ class DemoStore {
         pointsEarned: 0,
       };
     }
-    const date = targetDate || StreakEngine.formatDate(new Date());
+    const date = targetDate || getTodayDateString();
     const task = this.state.tasks.find((t) => t.id === taskId);
     if (!task) throw new Error("Task not found");
 
@@ -722,15 +712,7 @@ class DemoStore {
 
     const isWeekly = task.frequency !== "daily" && task.frequency !== "cycle" && (task.target_days_per_week ? task.target_days_per_week < 7 : false);
     if (isWeekly && task.target_days_per_week) {
-      const d = StreakEngine.parseDate(date);
-      const day = d.getDay();
-      const diff = day === 0 ? -6 : 1 - day;
-      const monday = new Date(d);
-      monday.setDate(d.getDate() + diff);
-      const mondayStr = StreakEngine.formatDate(monday);
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      const sundayStr = StreakEngine.formatDate(sunday);
+      const { mondayStr, sundayStr } = getWeekRange(date);
 
       const otherDayLogsThisWeek = this.state.dailyLogs.filter(
         (l) => l.user_id === userId && l.task_id === taskId && l.status === "completed" && l.date >= mondayStr && l.date <= sundayStr && l.date !== date

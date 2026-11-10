@@ -23,7 +23,7 @@ const EditTaskModal = dynamic(() => import("@/components/EditTaskModal").then((m
 const PersonalHabitModal = dynamic(() => import("@/components/PersonalHabitModal").then((m) => m.PersonalHabitModal), { ssr: false });
 const LogoutModal = dynamic(() => import("@/components/LogoutModal").then((m) => m.LogoutModal), { ssr: false });
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
-import { formatCycleDateRange, formatDaysRemaining } from "@/utils/dateFormatter";
+import { formatCycleDateRange, formatDaysRemaining, getTodayDateString, getWeekRange } from "@/utils/dateFormatter";
 import { gameFeedback } from "@/utils/gameFeedback";
 import {
   TargetIcon,
@@ -1921,15 +1921,11 @@ export function MobileDashboard({
   }
 
   const getWeekDays = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + mondayOffset);
+    const todayIso = data?.todayDate || getTodayDateString();
+    const { weekDates } = getWeekRange(todayIso);
 
     const dayLabels = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
     const days = [];
-    const todayIso = new Date().toISOString().split("T")[0];
     const weekStreakData = data?.streaks?.weekStreakDays;
     const weekStreakList: Array<{
       date?: string;
@@ -1940,9 +1936,8 @@ export function MobileDashboard({
     }> = Array.isArray(weekStreakData) ? weekStreakData : [];
 
     for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const iso = d.toISOString().split("T")[0];
+      const iso = weekDates[i];
+      const dateNum = Number(iso.split("-")[2]);
       
       let streakInfo = weekStreakList.find((w) => w.date === iso);
       if (!streakInfo && weekStreakData && typeof weekStreakData === "object" && !Array.isArray(weekStreakData)) {
@@ -1956,7 +1951,7 @@ export function MobileDashboard({
 
       days.push({
         label: dayLabels[i],
-        dateNum: d.getDate(),
+        dateNum,
         iso,
         isToday: iso === todayIso,
         isPast: iso < todayIso,
