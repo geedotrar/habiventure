@@ -1,8 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": [
-    "sin1"
-  ],
+  "regions": ["sin1"],
   "crons": [
     {
       "path": "/api/cron/reminders?type=daily&slot=12",
@@ -22,6 +20,7 @@
     },
     {
       "path": "/api/cron/reminders?type=cycle",
+      "schedule": "0 5 * * 6"
     }
   ]
 }
