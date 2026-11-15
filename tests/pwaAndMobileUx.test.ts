@@ -84,7 +84,6 @@ describe("PWA and Mobile UX Technical Readiness", () => {
       expect(viewport.width).toBe("device-width");
       expect(viewport.initialScale).toBe(1);
       expect(viewport.viewportFit).toBe("cover");
-      // maximumScale: 1 must NOT be set to allow user pinch-to-zoom
       expect((viewport as any).maximumScale).toBeUndefined();
     });
 

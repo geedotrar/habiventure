@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'habiventure-v2.1.0';
+const CACHE_VERSION = 'habiventure-v2.2.0';
 const STATIC_CACHE_NAME = `static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE_NAME = `dynamic-${CACHE_VERSION}`;
 
@@ -15,7 +15,6 @@ const CORE_PRECACHE_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then(async (cache) => {
-      // Resilient precache: errors on non-critical assets don't fail the entire SW install
       await Promise.allSettled(
         CORE_PRECACHE_ASSETS.map((url) =>
           cache.add(url).catch((err) => {
@@ -52,7 +51,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Bypass API requests and Supabase network traffic
   if (
     url.pathname.startsWith('/api/') ||
     url.hostname.includes('supabase.co') ||
@@ -61,7 +59,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests: Network-first with offline fallback
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -86,7 +83,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: Cache-first with background network update (Stale-While-Revalidate)
   if (
     url.pathname.startsWith('/_next/static/') ||
     url.pathname.startsWith('/icons/') ||
@@ -113,7 +109,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Other GET requests
   event.respondWith(
     fetch(request)
       .then((networkResponse) => {
@@ -128,3 +123,56 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
+self.addEventListener('push', (event) => {
+  let data = {
+    title: 'HabiVenture',
+    body: 'You have pending habit reminders.',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+    data: { url: '/?tab=today' },
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    } catch {
+      data.body = event.data.text() || data.body;
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || '/icons/icon-192x192.png',
+    badge: data.badge || '/icons/icon-192x192.png',
+    tag: data.tag || 'habiventure-reminder',
+    renotify: true,
+    data: data.data || { url: data.url || '/?tab=today' },
+    vibrate: [100, 50, 100],
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/?tab=today';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          if (client.url.includes(self.location.origin)) {
+            client.navigate(targetUrl);
+            return client.focus();
+          }
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+

@@ -127,3 +127,29 @@ export interface DecisionOption {
   created_at?: string;
 }
 
+export interface PushSubscriptionRecord {
+  id?: number;
+  user_id: number;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type ReminderType = "daily" | "weekly" | "cycle" | "all";
+
+export interface ReminderNotificationItem {
+  userId: number;
+  userName: string;
+  type: "daily" | "weekly" | "cycle";
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+  pendingTasksCount: number;
+  taskNames: string[];
+}
+
+

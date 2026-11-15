@@ -1,9 +1,5 @@
 export const APP_TIMEZONE = "Asia/Jakarta";
 
-/**
- * Returns current date string formatted as YYYY-MM-DD in the app timezone (default: Asia/Jakarta / WIB).
- * Ensures daily reset happens exactly at 00:00 midnight local time.
- */
 export function getTodayDateString(timeZone: string = APP_TIMEZONE): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -13,9 +9,6 @@ export function getTodayDateString(timeZone: string = APP_TIMEZONE): string {
   }).format(new Date());
 }
 
-/**
- * Formats any Date object into YYYY-MM-DD in the specified timezone.
- */
 export function formatDateString(date: Date, timeZone: string = APP_TIMEZONE): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -25,10 +18,6 @@ export function formatDateString(date: Date, timeZone: string = APP_TIMEZONE): s
   }).format(date);
 }
 
-/**
- * Returns the Monday-to-Sunday week range (and all 7 ISO date strings) for a given date (YYYY-MM-DD).
- * Uses noon calculation to avoid timezone boundary shifts.
- */
 export function getWeekRange(dateStr: string): { mondayStr: string; sundayStr: string; weekDates: string[] } {
   const [y, m, d] = dateStr.split("-").map(Number);
   const ref = new Date(y, m - 1, d, 12, 0, 0);

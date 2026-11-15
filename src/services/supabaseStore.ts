@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
+
+if (typeof globalThis !== "undefined" && typeof (globalThis as any).WebSocket === "undefined") {
+  (globalThis as any).WebSocket = class MockWebSocket { };
+}
 import type {
   User,
   Task,
@@ -13,6 +17,7 @@ import type {
   Pair,
   CycleHistoryItem,
   CycleHistoryPage,
+  PushSubscriptionRecord,
 } from "@/types/domain";
 import { INITIAL_PUNISHMENTS, INITIAL_DECISION_OPTIONS, INITIAL_TASKS, INITIAL_CYCLE, INITIAL_PAIRS } from "./seedData";
 import type { AppDataStore } from "./dataAccess";
@@ -31,25 +36,25 @@ export class SupabaseStore implements AppDataStore {
     };
     expiresAt: number;
   } = {
-    data: {
-      rowCount: 35,
-      approxBytes: 15000,
-      usedMb: 0.02,
-      maxFreeMb: 500,
-      remainingMb: 499.98,
-      percentage: 0.004,
-    },
-    expiresAt: Date.now() + 10 * 60 * 1000,
-  };
+      data: {
+        rowCount: 35,
+        approxBytes: 15000,
+        usedMb: 0.02,
+        maxFreeMb: 500,
+        remainingMb: 499.98,
+        percentage: 0.004,
+      },
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    };
   private pairsCache: { data: Pair[]; expiresAt: number } | null = null;
   private punishmentsCache: { data: Punishment[]; expiresAt: number } | null = null;
+  private memoryPushSubscriptions: PushSubscriptionRecord[] = [];
 
   constructor() {
     const supabaseUrl =
       process.env.SUPABASE_URL ||
       process.env.NEXT_PUBLIC_SUPABASE_URL ||
       "https://placeholder.supabase.co";
-    // Prefer private server-side service role key if configured, fallback to publishable key
     const supabaseKey =
       process.env.SUPABASE_SERVICE_ROLE_KEY ||
       process.env.SUPABASE_KEY ||
@@ -639,9 +644,9 @@ export class SupabaseStore implements AppDataStore {
       options?.preloadedUsers ? Promise.resolve(options.preloadedUsers) : this.getUsers(),
       cycleIds.length > 0
         ? this.client
-            .from("cycle_results")
-            .select("cycle_id, winner_user_id, loser_user_id, winner_score, loser_score, score_diff, selected_punishment_id")
-            .in("cycle_id", cycleIds)
+          .from("cycle_results")
+          .select("cycle_id, winner_user_id, loser_user_id, winner_score, loser_score, score_diff, selected_punishment_id")
+          .in("cycle_id", cycleIds)
         : Promise.resolve({ data: [] }),
       options?.preloadedPunishments ? Promise.resolve(options.preloadedPunishments) : this.getPunishments(),
     ]);
@@ -1198,7 +1203,7 @@ export class SupabaseStore implements AppDataStore {
           exactDiskBytes = parsed;
         }
       }
-    } catch {}
+    } catch { }
 
     const tableCounts = await Promise.all(
       tables.map(async (table) => {
@@ -1210,7 +1215,7 @@ export class SupabaseStore implements AppDataStore {
           if (!error && typeof count === "number") {
             return count;
           }
-        } catch {}
+        } catch { }
         return 0;
       })
     );
@@ -1244,6 +1249,77 @@ export class SupabaseStore implements AppDataStore {
     };
 
     return result;
+  }
+
+  async savePushSubscription(sub: { userId: number; endpoint: string; p256dh: string; auth: string; userAgent?: string }): Promise<void> {
+    const now = new Date().toISOString();
+    const memIndex = this.memoryPushSubscriptions.findIndex((s) => s.endpoint === sub.endpoint);
+    const memRecord: PushSubscriptionRecord = {
+      id: memIndex >= 0 ? this.memoryPushSubscriptions[memIndex].id : this.memoryPushSubscriptions.length + 1,
+      user_id: sub.userId,
+      endpoint: sub.endpoint,
+      p256dh: sub.p256dh,
+      auth: sub.auth,
+      user_agent: sub.userAgent,
+      created_at: memIndex >= 0 ? this.memoryPushSubscriptions[memIndex].created_at : now,
+      updated_at: now,
+    };
+
+    if (memIndex >= 0) {
+      this.memoryPushSubscriptions[memIndex] = memRecord;
+    } else {
+      this.memoryPushSubscriptions.push(memRecord);
+    }
+
+    try {
+      const { error } = await this.client.from("push_subscriptions").upsert(
+        {
+          user_id: sub.userId,
+          endpoint: sub.endpoint,
+          p256dh: sub.p256dh,
+          auth: sub.auth,
+          user_agent: sub.userAgent,
+          updated_at: now,
+        },
+        { onConflict: "endpoint" }
+      );
+      if (error && error.code !== "PGRST205") {
+        console.warn("Could not save push subscription to DB:", error.message);
+      }
+  } catch { }
+  }
+
+  async deletePushSubscription(endpoint: string): Promise < void> {
+  this.memoryPushSubscriptions = this.memoryPushSubscriptions.filter((s) => s.endpoint !== endpoint);
+  try {
+    const { error } = await this.client.from("push_subscriptions").delete().eq("endpoint", endpoint);
+    if(error && error.code !== "PGRST205") {
+  console.warn("Could not delete push subscription from DB:", error.message);
+}
+    } catch { }
+  }
+
+  async getPushSubscriptionsByUserId(userId: number): Promise < PushSubscriptionRecord[] > {
+  try {
+    const { data, error } = await this.client
+      .from("push_subscriptions")
+      .select("*")
+      .eq("user_id", userId);
+    if(!error && data) {
+  return data;
+}
+    } catch { }
+return this.memoryPushSubscriptions.filter((s) => s.user_id === userId);
+  }
+
+  async getAllPushSubscriptions(): Promise < PushSubscriptionRecord[] > {
+  try {
+    const { data, error } = await this.client.from("push_subscriptions").select("*");
+    if(!error && data) {
+  return data;
+}
+    } catch { }
+return [...this.memoryPushSubscriptions];
   }
 }
 

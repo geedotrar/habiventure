@@ -33,7 +33,6 @@ export async function authenticateAdminRequest(
     };
   }
 
-  // Fallback for automated test suites and internal invocations
   if (fallbackUserId) {
     const user = await dataStore.getUserById(Number(fallbackUserId));
     if (user && user.role === "superadmin" && user.active) {

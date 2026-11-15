@@ -18,7 +18,6 @@ export function PwaInstallPrompt() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Check standalone mode (already installed & launched from home screen)
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       Boolean((navigator as any).standalone) ||
@@ -27,7 +26,6 @@ export function PwaInstallPrompt() {
     setIsStandalone(standalone);
     if (standalone) return;
 
-    // Check dismissal cooldown (7 days)
     try {
       const dismissedTime = localStorage.getItem("habiventure_pwa_dismissed");
       if (dismissedTime) {
@@ -37,11 +35,10 @@ export function PwaInstallPrompt() {
           return;
         }
       }
-    } catch {}
+    } catch { }
 
     setIsDismissed(false);
 
-    // Detect iOS Safari
     const ua = navigator.userAgent;
     const isIos = /iPhone|iPad|iPod/i.test(ua);
     const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS/i.test(ua);
@@ -49,7 +46,6 @@ export function PwaInstallPrompt() {
       setIsIosSafari(true);
     }
 
-    // Capture Android/Chromium beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -66,7 +62,7 @@ export function PwaInstallPrompt() {
     setIsDismissed(true);
     try {
       localStorage.setItem("habiventure_pwa_dismissed", String(Date.now()));
-    } catch {}
+    } catch { }
   };
 
   const handleInstallClick = async () => {
@@ -84,12 +80,10 @@ export function PwaInstallPrompt() {
     }
   };
 
-  // Do not render if app is running in standalone mode or dismissed
   if (isStandalone || isDismissed) {
     return null;
   }
 
-  // Chromium / Android beforeinstallprompt banner
   if (deferredPrompt) {
     return (
       <section
@@ -181,7 +175,6 @@ export function PwaInstallPrompt() {
     );
   }
 
-  // iOS Safari "Add to Home Screen" guide
   if (isIosSafari) {
     return (
       <section

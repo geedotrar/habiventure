@@ -13,6 +13,7 @@ import type {
   Pair,
   CycleHistoryPage,
   CycleHistoryItem,
+  PushSubscriptionRecord,
 } from "@/types/domain";
 
 const DEMO_STORAGE_KEY = "habiventure_demo_sandbox_v1";
@@ -27,6 +28,7 @@ export interface DemoState {
   scoreEvents: ScoreEvent[];
   punishments: Punishment[];
   decisionOptions: DecisionOption[];
+  pushSubscriptions?: PushSubscriptionRecord[];
 }
 
 export const INITIAL_DEMO_USERS: User[] = [
@@ -311,6 +313,7 @@ function createInitialDemoState(): DemoState {
     scoreEvents: events,
     punishments: INITIAL_DEMO_PUNISHMENTS.map((p) => ({ ...p })),
     decisionOptions: INITIAL_DEMO_DECISION_OPTIONS.map((o) => ({ ...o })),
+    pushSubscriptions: [],
   };
 }
 
@@ -867,6 +870,10 @@ class DemoStore {
 
   public getTasks(): Task[] {
     return this.state.tasks;
+  }
+
+  public async getActiveCycle(): Promise<Cycle | null> {
+    return this.state.activeCycle || null;
   }
 
   public getPunishments(): Punishment[] {
@@ -1452,6 +1459,44 @@ class DemoStore {
       logs = logs.filter((l) => l.task_id === taskId);
     }
     return logs.sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
+  }
+
+  public async savePushSubscription(sub: { userId: number; endpoint: string; p256dh: string; auth: string; userAgent?: string }): Promise<void> {
+    const list = this.state.pushSubscriptions ? [...this.state.pushSubscriptions] : [];
+    const index = list.findIndex((item) => item.endpoint === sub.endpoint);
+    const now = new Date().toISOString();
+    const record: PushSubscriptionRecord = {
+      id: index >= 0 ? list[index].id : list.length + 1,
+      user_id: sub.userId,
+      endpoint: sub.endpoint,
+      p256dh: sub.p256dh,
+      auth: sub.auth,
+      user_agent: sub.userAgent,
+      created_at: index >= 0 ? list[index].created_at : now,
+      updated_at: now,
+    };
+    if (index >= 0) {
+      list[index] = record;
+    } else {
+      list.push(record);
+    }
+    this.state.pushSubscriptions = list;
+    this.persistState(this.state);
+  }
+
+  public async deletePushSubscription(endpoint: string): Promise<void> {
+    const list = this.state.pushSubscriptions ? [...this.state.pushSubscriptions] : [];
+    this.state.pushSubscriptions = list.filter((item) => item.endpoint !== endpoint);
+    this.persistState(this.state);
+  }
+
+  public async getPushSubscriptionsByUserId(userId: number): Promise<PushSubscriptionRecord[]> {
+    const list = this.state.pushSubscriptions || [];
+    return list.filter((item) => item.user_id === userId);
+  }
+
+  public async getAllPushSubscriptions(): Promise<PushSubscriptionRecord[]> {
+    return (this.state.pushSubscriptions || []).slice();
   }
 }
 

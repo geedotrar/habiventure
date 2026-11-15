@@ -29,7 +29,6 @@ export function NetworkStatusIndicator() {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
-    // Listen for Service Worker update found from ServiceWorkerRegister
     const handleSwUpdate = (e: Event) => {
       const customEvent = e as CustomEvent<{ worker?: ServiceWorker }>;
       if (customEvent.detail?.worker) {

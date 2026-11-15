@@ -215,7 +215,6 @@ async function handleChangePin(
     );
   }
 
-  // Authenticate admin caller via session cookie or fallback
   if (request) {
     const auth = await authenticateAdminRequest(request, userId ? Number(userId) : null);
     if (!auth.authorized) {

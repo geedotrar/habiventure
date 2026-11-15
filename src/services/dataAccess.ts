@@ -10,6 +10,7 @@ import type {
   DecisionOption,
   Pair,
   CycleHistoryPage,
+  PushSubscriptionRecord,
 } from "@/types/domain";
 
 export interface AppDataStore {
@@ -83,4 +84,9 @@ export interface AppDataStore {
     maxFreeMb?: number;
     remainingMb?: number;
   }>;
+
+  savePushSubscription?(sub: { userId: number; endpoint: string; p256dh: string; auth: string; userAgent?: string }): Promise<void>;
+  deletePushSubscription?(endpoint: string): Promise<void>;
+  getPushSubscriptionsByUserId?(userId: number): Promise<PushSubscriptionRecord[]>;
+  getAllPushSubscriptions?(): Promise<PushSubscriptionRecord[]>;
 }

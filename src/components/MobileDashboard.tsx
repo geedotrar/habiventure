@@ -22,6 +22,7 @@ const TaskHistoryView = dynamic(() => import("@/components/TaskHistoryView").the
 const EditTaskModal = dynamic(() => import("@/components/EditTaskModal").then((m) => m.EditTaskModal), { ssr: false });
 const PersonalHabitModal = dynamic(() => import("@/components/PersonalHabitModal").then((m) => m.PersonalHabitModal), { ssr: false });
 const LogoutModal = dynamic(() => import("@/components/LogoutModal").then((m) => m.LogoutModal), { ssr: false });
+const NotificationSettingsModal = dynamic(() => import("@/components/NotificationSettingsModal").then((m) => m.NotificationSettingsModal), { ssr: false });
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { formatCycleDateRange, formatDaysRemaining, getTodayDateString, getWeekRange } from "@/utils/dateFormatter";
 import { gameFeedback } from "@/utils/gameFeedback";
@@ -53,6 +54,7 @@ import {
   KeyIcon,
   BackspaceIcon,
   DatabaseIcon,
+  BellIcon,
   AlertTriangleIcon,
   CheckCircleIcon,
   XCircleIcon,
@@ -354,13 +356,13 @@ function applyTaskCompletionToData(
 
     const nextCurrentUserSummary = prev.scores.currentUserSummary
       ? {
-          ...prev.scores.currentUserSummary,
-          total: (prev.scores.currentUserSummary.total ?? 0) + pointsValue,
-          breakdown: {
-            ...prev.scores.currentUserSummary.breakdown,
-            personal: (prev.scores.currentUserSummary.breakdown.personal ?? 0) + pointsValue,
-          },
-        }
+        ...prev.scores.currentUserSummary,
+        total: (prev.scores.currentUserSummary.total ?? 0) + pointsValue,
+        breakdown: {
+          ...prev.scores.currentUserSummary.breakdown,
+          personal: (prev.scores.currentUserSummary.breakdown.personal ?? 0) + pointsValue,
+        },
+      }
       : undefined;
 
     nextScores = {
@@ -612,6 +614,7 @@ export function MobileDashboard({
   const [showChangePinModal, setShowChangePinModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showStorageModal, setShowStorageModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [changePinTargetId, setChangePinTargetId] = useState<number | undefined>(undefined);
   const [changePinInitialMode, setChangePinInitialMode] = useState<"edit" | "register">("edit");
   const [streakModalData, setStreakModalData] = useState<{
@@ -702,7 +705,7 @@ export function MobileDashboard({
                 setLoading(false);
               }
             }
-          } catch {}
+          } catch { }
         } else {
           localStorage.removeItem("habits_auth_user");
         }
@@ -764,7 +767,6 @@ export function MobileDashboard({
       }
       const json = await res.json();
 
-      // Drop stale response if another dashboard fetch was triggered after this one
       if (requestId !== latestDashboardRequestIdRef.current) {
         return null;
       }
@@ -788,7 +790,6 @@ export function MobileDashboard({
           tasks: mergedTasks,
         };
 
-        // Reconcile with any task completions currently in flight
         if (inFlightCompletionsRef.current.size > 0) {
           const serverLoggedTaskIds = new Set(
             (json.todayLogs || []).filter((l: any) => Number(l.user_id) === Number(userId)).map((l: any) => Number(l.task_id))
@@ -810,7 +811,7 @@ export function MobileDashboard({
 
         try {
           localStorage.setItem(`habits_dashboard_cache_${userId}`, JSON.stringify(nextData));
-        } catch {}
+        } catch { }
 
         return nextData;
       });
@@ -824,7 +825,7 @@ export function MobileDashboard({
           if (!prev) {
             try {
               localStorage.setItem("habits_auth_user", JSON.stringify(json.currentUser));
-            } catch {}
+            } catch { }
             return json.currentUser;
           }
           if (json.currentUser.id !== prev.id) {
@@ -838,7 +839,7 @@ export function MobileDashboard({
           };
           try {
             localStorage.setItem("habits_auth_user", JSON.stringify(merged));
-          } catch {}
+          } catch { }
           return merged;
         });
       } else if (json.configured && json.schemaReady !== false && !json.currentUser) {
@@ -846,7 +847,7 @@ export function MobileDashboard({
         localStorage.removeItem("habits_auth_user");
         try {
           localStorage.removeItem(`habits_dashboard_cache_${userId}`);
-        } catch {}
+        } catch { }
       }
       return json;
     } catch (e) {
@@ -984,7 +985,7 @@ export function MobileDashboard({
     if (authenticatedUser?.id) {
       try {
         localStorage.removeItem(`habits_dashboard_cache_${authenticatedUser.id}`);
-      } catch {}
+      } catch { }
     }
     localStorage.removeItem("habits_auth_user");
     setAuthenticatedUser(null);
@@ -999,7 +1000,7 @@ export function MobileDashboard({
     if (authenticatedUser?.id) {
       try {
         localStorage.removeItem(`habits_dashboard_cache_${authenticatedUser.id}`);
-      } catch {}
+      } catch { }
     }
     setAuthenticatedUser(null);
     setData(null);
@@ -1014,7 +1015,7 @@ export function MobileDashboard({
     [1, 2, 3].forEach((id) => {
       try {
         localStorage.removeItem(`habits_dashboard_cache_${id}`);
-      } catch {}
+      } catch { }
     });
     localStorage.removeItem("habits_auth_user");
 
@@ -1022,14 +1023,14 @@ export function MobileDashboard({
       authenticatedUser?.role === "superadmin"
         ? "9999"
         : authenticatedUser?.id === 3
-        ? "3344"
-        : "1122";
+          ? "3344"
+          : "1122";
     const targetUserId =
       authenticatedUser?.role === "superadmin"
         ? 1
         : authenticatedUser?.id === 3
-        ? 3
-        : 2;
+          ? 3
+          : 2;
 
     setData(null);
     await submitPin(targetPin);
@@ -1056,7 +1057,6 @@ export function MobileDashboard({
     const rawX = e ? e.clientX : (typeof window !== "undefined" ? window.innerWidth / 2 : 200);
     const rawY = e ? e.clientY : (typeof window !== "undefined" ? window.innerHeight * 0.6 : 300);
 
-    // Clamp coordinates safely so popup badges never clip on any mobile or small screen
     const vw = typeof window !== "undefined" ? window.innerWidth : 380;
     const vh = typeof window !== "undefined" ? window.innerHeight : 700;
     const halfPillWidth = 78;
@@ -1072,7 +1072,6 @@ export function MobileDashboard({
       completed_at: new Date().toISOString(),
     };
 
-    // Register in-flight completion to preserve optimistic state across concurrent fetches
     inFlightCompletionsRef.current.set(taskId, {
       taskId,
       date: data.todayDate,
@@ -1236,10 +1235,10 @@ export function MobileDashboard({
               newTaskFreq === "cycle"
                 ? 1
                 : newTaskFreq === "daily"
-                ? 7
-                : newTaskFreq === "weekly_2x"
-                ? 2
-                : Math.max(1, Math.min(7, Number(newTaskTargetDays) || 3)),
+                  ? 7
+                  : newTaskFreq === "weekly_2x"
+                    ? 2
+                    : Math.max(1, Math.min(7, Number(newTaskTargetDays) || 3)),
           },
         }),
       });
@@ -1262,7 +1261,7 @@ export function MobileDashboard({
           if (authenticatedUser) {
             try {
               localStorage.setItem(`habits_dashboard_cache_${authenticatedUser.id}`, JSON.stringify(nextData));
-            } catch {}
+            } catch { }
           }
           return nextData;
         });
@@ -1291,7 +1290,7 @@ export function MobileDashboard({
       if (authenticatedUser) {
         try {
           localStorage.setItem(`habits_dashboard_cache_${authenticatedUser.id}`, JSON.stringify(nextData));
-        } catch {}
+        } catch { }
       }
       return nextData;
     });
@@ -1310,7 +1309,7 @@ export function MobileDashboard({
       if (authenticatedUser) {
         try {
           localStorage.setItem(`habits_dashboard_cache_${authenticatedUser.id}`, JSON.stringify(nextData));
-        } catch {}
+        } catch { }
       }
       return nextData;
     });
@@ -1891,9 +1890,9 @@ export function MobileDashboard({
 
   const partnerCompletedCount = partnerUser
     ? (data?.tasks || []).filter((task) => {
-        const log = data?.todayLogs?.find((l) => l.user_id === partnerUser.id && l.task_id === task.id);
-        return log?.status === "completed";
-      }).length
+      const log = data?.todayLogs?.find((l) => l.user_id === partnerUser.id && l.task_id === task.id);
+      return log?.status === "completed";
+    }).length
     : 0;
 
   const isScoreTied = scoreDiff === 0 && (currentScore > 0 || partnerScore > 0);
@@ -1938,7 +1937,7 @@ export function MobileDashboard({
     for (let i = 0; i < 7; i++) {
       const iso = weekDates[i];
       const dateNum = Number(iso.split("-")[2]);
-      
+
       let streakInfo = weekStreakList.find((w) => w.date === iso);
       if (!streakInfo && weekStreakData && typeof weekStreakData === "object" && !Array.isArray(weekStreakData)) {
         const val = (weekStreakData as Record<string, any>)[iso];
@@ -2013,17 +2012,17 @@ export function MobileDashboard({
       const aCompleted = isCycleTask(a)
         ? Boolean(data?.cycleTaskProgress?.[a.id]?.completedInCycle)
         : Boolean(
-            data?.todayLogs?.some(
-              (l) => l.user_id === authenticatedUser?.id && l.task_id === a.id && l.status === "completed"
-            )
-          );
+          data?.todayLogs?.some(
+            (l) => l.user_id === authenticatedUser?.id && l.task_id === a.id && l.status === "completed"
+          )
+        );
       const bCompleted = isCycleTask(b)
         ? Boolean(data?.cycleTaskProgress?.[b.id]?.completedInCycle)
         : Boolean(
-            data?.todayLogs?.some(
-              (l) => l.user_id === authenticatedUser?.id && l.task_id === b.id && l.status === "completed"
-            )
-          );
+          data?.todayLogs?.some(
+            (l) => l.user_id === authenticatedUser?.id && l.task_id === b.id && l.status === "completed"
+          )
+        );
 
       if (aCompleted !== bCompleted) {
         return aCompleted ? 1 : -1;
@@ -2039,8 +2038,8 @@ export function MobileDashboard({
     taskCategoryTab === "everyday"
       ? everydayTasks
       : taskCategoryTab === "weekly"
-      ? pendingWeeklyTasks
-      : cycleTasks;
+        ? pendingWeeklyTasks
+        : cycleTasks;
 
   const displayedTasks = sortTasks(rawDisplayedTasks);
 
@@ -2245,6 +2244,19 @@ export function MobileDashboard({
                 type="button"
                 onClick={() => {
                   gameFeedback.playPop();
+                  setShowNotificationModal(true);
+                }}
+                className="neo-btn neo-btn-glass"
+                style={{ width: "34px", height: "34px", borderRadius: "50%", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+                title="Reminder Notifications"
+              >
+                <BellIcon size={16} color="var(--emerald-primary)" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  gameFeedback.playPop();
                   setShowLogoutModal(true);
                 }}
                 className="neo-btn neo-btn-glass"
@@ -2269,20 +2281,20 @@ export function MobileDashboard({
                   background: day.isToday
                     ? "rgba(16, 185, 129, 0.18)"
                     : day.isProtected
-                    ? "rgba(99, 102, 241, 0.16)"
-                    : "rgba(255, 255, 255, 0.03)",
+                      ? "rgba(99, 102, 241, 0.16)"
+                      : "rgba(255, 255, 255, 0.03)",
                   border: day.isToday
                     ? "1px solid rgba(16, 185, 129, 0.5)"
                     : day.isProtected
-                    ? "1px solid rgba(129, 140, 248, 0.5)"
-                    : "1px solid var(--border-subtle)",
+                      ? "1px solid rgba(129, 140, 248, 0.5)"
+                      : "1px solid var(--border-subtle)",
                 }}
                 title={
                   day.isProtected
                     ? "Streak Shielded: Missed day protected by Streak Shield"
                     : day.hasCompleted
-                    ? "Completed goal(s)"
-                    : undefined
+                      ? "Completed goal(s)"
+                      : undefined
                 }
               >
                 <span style={{ fontSize: "9px", fontWeight: "800", color: day.isToday ? "var(--emerald-glow)" : day.isProtected ? "#A5B4FC" : "var(--text-muted)" }}>
@@ -2647,14 +2659,14 @@ export function MobileDashboard({
                       mascotJoyBurst
                         ? "jump"
                         : completionPercent === 100
-                        ? "celebrate"
-                        : scoreDiff > 0
-                        ? "cheer"
-                        : scoreDiff < 0
-                        ? "bounce"
-                        : isScoreTied
-                        ? "wave"
-                        : "bounce"
+                          ? "celebrate"
+                          : scoreDiff > 0
+                            ? "cheer"
+                            : scoreDiff < 0
+                              ? "bounce"
+                              : isScoreTied
+                                ? "wave"
+                                : "bounce"
                     }
                     size={heroCharacter === "together" ? 145 : 125}
                     showCrown={false}
@@ -2670,11 +2682,10 @@ export function MobileDashboard({
                 style={{
                   padding: "16px 14px 12px 14px",
                   background: "linear-gradient(180deg, #18221B 0%, #101813 100%)",
-                  border: `1px solid ${
-                    (data?.streaks?.teamStreak ?? 0) >= 30
-                      ? getStreakTier(data?.streaks?.teamStreak ?? 0).borderColor
-                      : getStreakTier(data?.streaks?.personalStreak ?? 0).borderColor
-                  }`,
+                  border: `1px solid ${(data?.streaks?.teamStreak ?? 0) >= 30
+                    ? getStreakTier(data?.streaks?.teamStreak ?? 0).borderColor
+                    : getStreakTier(data?.streaks?.personalStreak ?? 0).borderColor
+                    }`,
                 }}
               >
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
@@ -3053,19 +3064,19 @@ export function MobileDashboard({
                     {taskCategoryTab === "weekly" && reachedWeeklyTasks.length > 0
                       ? "All Weekly Goals Achieved for This Week!"
                       : taskFilter === "personal"
-                      ? "No Personal Habits Yet"
-                      : taskFilter === "shared"
-                      ? "No Shared Goals Yet"
-                      : taskCategoryTab === "cycle"
-                      ? "No Cycle Quests Pending"
-                      : `No ${taskCategoryTab === "everyday" ? "Everyday" : "Weekly"} Goals Pending`}
+                        ? "No Personal Habits Yet"
+                        : taskFilter === "shared"
+                          ? "No Shared Goals Yet"
+                          : taskCategoryTab === "cycle"
+                            ? "No Cycle Quests Pending"
+                            : `No ${taskCategoryTab === "everyday" ? "Everyday" : "Weekly"} Goals Pending`}
                   </div>
                   <p style={{ fontSize: "12px", color: "var(--text-secondary)", maxWidth: "260px", lineHeight: 1.4 }}>
                     {taskCategoryTab === "weekly" && reachedWeeklyTasks.length > 0
                       ? "Great job! Weekly goals reset automatically next Monday."
                       : taskCategoryTab === "cycle"
-                      ? "Cycle goals (e.g. Monthly Savings) reward the highest points (+50 PTS) and must be completed once before the cycle ends!"
-                      : "Add your goals to maintain consistency and level up together."}
+                        ? "Cycle goals (e.g. Monthly Savings) reward the highest points (+50 PTS) and must be completed once before the cycle ends!"
+                        : "Add your goals to maintain consistency and level up together."}
                   </p>
                   {(taskCategoryTab === "everyday" || taskCategoryTab === "cycle") && (
                     <button
@@ -3093,13 +3104,13 @@ export function MobileDashboard({
                     const isCompleted = isCycle
                       ? Boolean(cycleProg?.completedInCycle)
                       : data?.todayLogs?.some(
-                          (l) => l.user_id === authenticatedUser.id && l.task_id === task.id && l.status === "completed"
-                        );
+                        (l) => l.user_id === authenticatedUser.id && l.task_id === task.id && l.status === "completed"
+                      );
                     const partnerCompleted = isCycle
                       ? Boolean(cycleProg?.partnerCompletedInCycle)
                       : Boolean(partnerUser && data?.todayLogs?.some(
-                          (l) => l.user_id === partnerUser.id && l.task_id === task.id && l.status === "completed"
-                        ));
+                        (l) => l.user_id === partnerUser.id && l.task_id === task.id && l.status === "completed"
+                      ));
                     const isPersonal = task.is_personal;
                     const pointsValue = isCycle ? (task.base_score || 50) : task.base_score || (isEveryday ? 10 : 15);
 
@@ -3438,8 +3449,8 @@ export function MobileDashboard({
                                 background: isCycle
                                   ? "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)"
                                   : isWeekly
-                                  ? "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)"
-                                  : undefined,
+                                    ? "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)"
+                                    : undefined,
                                 boxShadow: isCycle ? "0 0 16px rgba(245, 158, 11, 0.4)" : undefined,
                               }}
                               disabled={actionLoading === `task_${task.id}`}
@@ -3899,8 +3910,8 @@ export function MobileDashboard({
                                 {c.isTie
                                   ? `Scores currently tied (${c.winner_score || 0} pts each)`
                                   : c.winner_name
-                                  ? `${c.winner_name} leading (${c.winner_score} pts vs ${c.loser_score} pts)`
-                                  : "Cycle duel in progress"}
+                                    ? `${c.winner_name} leading (${c.winner_score} pts vs ${c.loser_score} pts)`
+                                    : "Cycle duel in progress"}
                               </span>
                             </div>
                           ) : (
@@ -4867,13 +4878,13 @@ export function MobileDashboard({
                                 border: isSelected
                                   ? (isFifty ? "1px solid rgba(245, 158, 11, 0.6)" : "1px solid var(--border-emerald)")
                                   : isFifty && newTaskFreq === "cycle"
-                                  ? "1px dashed rgba(245, 158, 11, 0.5)"
-                                  : "1px solid var(--border-glass)",
+                                    ? "1px dashed rgba(245, 158, 11, 0.5)"
+                                    : "1px solid var(--border-glass)",
                                 color: isSelected
                                   ? (isFifty ? "#FCD34D" : "var(--emerald-glow)")
                                   : isFifty && newTaskFreq === "cycle"
-                                  ? "#F59E0B"
-                                  : "var(--text-muted)",
+                                    ? "#F59E0B"
+                                    : "var(--text-muted)",
                                 borderRadius: "10px",
                                 padding: "8px 11px",
                                 fontSize: "11px",
@@ -5556,48 +5567,48 @@ export function MobileDashboard({
                 const nextUsers = (prev.users || []).map((u) =>
                   u.id === updatedUser.id
                     ? {
-                        ...u,
-                        ...updatedUser,
-                        name: updatedUser.name?.trim() ? updatedUser.name.trim() : u.name,
-                        role: u.id === 1 ? "superadmin" : (updatedUser.role || u.role),
-                      }
+                      ...u,
+                      ...updatedUser,
+                      name: updatedUser.name?.trim() ? updatedUser.name.trim() : u.name,
+                      role: u.id === 1 ? "superadmin" : (updatedUser.role || u.role),
+                    }
                     : u
                 );
                 const nextPartner =
                   prev.partnerUser && prev.partnerUser.id === updatedUser.id
                     ? {
-                        ...prev.partnerUser,
-                        ...updatedUser,
-                        name: updatedUser.name?.trim() ? updatedUser.name.trim() : prev.partnerUser.name,
-                        role: prev.partnerUser.id === 1 ? "superadmin" : (updatedUser.role || prev.partnerUser.role),
-                      }
+                      ...prev.partnerUser,
+                      ...updatedUser,
+                      name: updatedUser.name?.trim() ? updatedUser.name.trim() : prev.partnerUser.name,
+                      role: prev.partnerUser.id === 1 ? "superadmin" : (updatedUser.role || prev.partnerUser.role),
+                    }
                     : prev.partnerUser;
                 const nextCurrent =
                   prev.currentUser && prev.currentUser.id === updatedUser.id
                     ? {
-                        ...prev.currentUser,
-                        ...updatedUser,
-                        name: updatedUser.name?.trim() ? updatedUser.name.trim() : prev.currentUser.name,
-                        role: prev.currentUser.id === 1 ? "superadmin" : (updatedUser.role || prev.currentUser.role),
-                      }
+                      ...prev.currentUser,
+                      ...updatedUser,
+                      name: updatedUser.name?.trim() ? updatedUser.name.trim() : prev.currentUser.name,
+                      role: prev.currentUser.id === 1 ? "superadmin" : (updatedUser.role || prev.currentUser.role),
+                    }
                     : prev.currentUser;
                 const nextPlayerA =
                   prev.playerA && prev.playerA.id === updatedUser.id
                     ? {
-                        ...prev.playerA,
-                        ...updatedUser,
-                        name: updatedUser.name?.trim() ? updatedUser.name.trim() : prev.playerA.name,
-                        role: prev.playerA.id === 1 ? "superadmin" : (updatedUser.role || prev.playerA.role),
-                      }
+                      ...prev.playerA,
+                      ...updatedUser,
+                      name: updatedUser.name?.trim() ? updatedUser.name.trim() : prev.playerA.name,
+                      role: prev.playerA.id === 1 ? "superadmin" : (updatedUser.role || prev.playerA.role),
+                    }
                     : prev.playerA;
                 const nextPlayerB =
                   prev.playerB && prev.playerB.id === updatedUser.id
                     ? {
-                        ...prev.playerB,
-                        ...updatedUser,
-                        name: updatedUser.name?.trim() ? updatedUser.name.trim() : prev.playerB.name,
-                        role: prev.playerB.id === 1 ? "superadmin" : (updatedUser.role || prev.playerB.role),
-                      }
+                      ...prev.playerB,
+                      ...updatedUser,
+                      name: updatedUser.name?.trim() ? updatedUser.name.trim() : prev.playerB.name,
+                      role: prev.playerB.id === 1 ? "superadmin" : (updatedUser.role || prev.playerB.role),
+                    }
                     : prev.playerB;
 
                 const nextData = {
@@ -5614,7 +5625,7 @@ export function MobileDashboard({
                     `habits_dashboard_cache_${authenticatedUser.id}`,
                     JSON.stringify(nextData)
                   );
-                } catch {}
+                } catch { }
 
                 return nextData;
               });
@@ -5629,7 +5640,7 @@ export function MobileDashboard({
                 setAuthenticatedUser(refreshedAuth);
                 try {
                   localStorage.setItem("habits_auth_user", JSON.stringify(refreshedAuth));
-                } catch {}
+                } catch { }
               }
             }
 
@@ -5689,7 +5700,7 @@ export function MobileDashboard({
                 if (authenticatedUser) {
                   try {
                     localStorage.setItem(`habits_dashboard_cache_${authenticatedUser.id}`, JSON.stringify(nextData));
-                  } catch {}
+                  } catch { }
                 }
                 return nextData;
               });
@@ -5715,7 +5726,7 @@ export function MobileDashboard({
                 if (authenticatedUser) {
                   try {
                     localStorage.setItem(`habits_dashboard_cache_${authenticatedUser.id}`, JSON.stringify(nextData));
-                  } catch {}
+                  } catch { }
                 }
                 return nextData;
               });
@@ -5734,6 +5745,15 @@ export function MobileDashboard({
           }}
           user={authenticatedUser}
         />
+
+        {showNotificationModal && authenticatedUser && (
+          <NotificationSettingsModal
+            isOpen={showNotificationModal}
+            onClose={() => setShowNotificationModal(false)}
+            userId={authenticatedUser.id}
+            userName={authenticatedUser.name}
+          />
+        )}
 
         <PairDeviceModal
           isOpen={showPairModal}
