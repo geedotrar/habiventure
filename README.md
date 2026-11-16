@@ -52,6 +52,15 @@ On the PIN entry screen, you can use the quick login buttons or enter:
 - **Cycle Governance**: Start new cycles, manually close active cycles, declare winners, and assign forfeits.
 - **Data Backup & Restore**: Export and import complete snapshots in JSON format with schema validation.
 
+### 7. Push Notifications & Reminders
+- **PWA Web Push**: Automated reminders delivered directly to devices (Android, iOS Home Screen PWA, and desktop) without opening the app.
+- **Personalized Summary**: Groups incomplete tasks into one concise notification per user with custom greetings (e.g., *"Hey Stevan, you have incomplete Daily goals!"*).
+- **Scheduled Triggers (WIB / Asia/Jakarta)**:
+  - **Daily**: Sent at 12:00 PM, with a second reminder at 8:00 PM if habits remain pending.
+  - **Weekly**: Sent Saturday at 6:00 AM, with a follow-up Sunday at 6:00 AM if weekly targets are unfinished.
+  - **Cycle**: Sent every Saturday at 12:00 PM until monthly quests are completed.
+- **Auto-Suppression**: Reminders stop automatically once all habits in that category are completed.
+
 ---
 
 ## Architecture & Design Decisions
@@ -90,19 +99,20 @@ To make the project safe for public portfolio demonstration while serving as a r
 - **Framework**: [Next.js 15](https://nextjs.org/) (App Router, Edge Middleware)
 - **Frontend**: [React 19](https://react.dev/), TypeScript
 - **Database**: [Supabase](https://supabase.com/) (PostgreSQL with Row Level Security)
+- **Push & Automation**: Web Push (VAPID), Service Workers, Vercel Crons
 - **Styling**: Vanilla CSS Modules with custom design tokens
 - **Audio & Haptics**: Web Audio API (oscillators for synthesized audio), Vibration API
-- **Testing**: [Vitest](https://vitest.dev/) (87 unit and domain tests)
+- **Testing**: [Vitest](https://vitest.dev/) (115 unit and domain tests)
 
 ---
 
 ## Project Structure
 
 ```
-├── public/                 # Static assets, PWA icons, mascots, offline fallback
+├── public/                 # Static assets, PWA icons, mascots, service worker, offline fallback
 ├── src/
 │   ├── app/                # App Router pages and API routes
-│   │   ├── api/            # Backend endpoints (tasks, admin, cycles, auth)
+│   │   ├── api/            # Backend endpoints (tasks, admin, cycles, auth, notifications, cron)
 │   │   ├── demo/           # Isolated guest demo sandbox page
 │   │   └── layout.tsx      # Root layout, PWA metadata, service worker registration
 │   ├── components/         # UI components (Dashboard, SVG Wheels, Modals, Mascot)
@@ -110,13 +120,14 @@ To make the project safe for public portfolio demonstration while serving as a r
 │   ├── services/           # Domain logic and data access abstraction
 │   │   ├── scoreEngine.ts  # Point calculation and cycle score summaries
 │   │   ├── streakEngine.ts # Streak calculations and cycle shield state machine
+│   │   ├── reminderEngine.ts # Goal evaluation and push reminder dispatcher
 │   │   ├── demoStore.ts    # In-memory mock store with seed records
 │   │   └── supabaseStore.ts# PostgreSQL data access layer
 │   ├── types/              # TypeScript domain types and interfaces
-│   └── utils/              # Cryptographic tokens, admin session verification, audio
+│   └── utils/              # Cryptographic tokens, web push, date formatting, audio
 ├── supabase/
-│   └── migrations/         # PostgreSQL database schema and RLS policies
-└── tests/                  # 87 automated unit and domain test suites
+│   └── migrations/         # PostgreSQL database schema, push subscriptions, and RLS policies
+└── tests/                  # 115 automated unit and domain test suites
 ```
 
 ---
@@ -144,18 +155,24 @@ To make the project safe for public portfolio demonstration while serving as a r
    ```bash
    cp .env.example .env
    ```
-   Fill in your Supabase credentials and a pairing secret:
+   Fill in your Supabase credentials, pairing secret, and push keys:
    ```env
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_anon_key
    SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_secret
    TRUSTED_DEVICE_SECRET=your_random_secret_string_min_32_chars
+
+   NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_vapid_public_key
+   VAPID_PRIVATE_KEY=your_vapid_private_key
+   VAPID_SUBJECT=mailto:admin@habiventure.local
+   CRON_SECRET=your_cron_job_secret_key
    ```
 
 4. **Initialize database schema**:
-   Run the schema migration file in your Supabase SQL editor:
+   Run the schema migration files in your Supabase SQL editor:
    ```
    supabase/migrations/20261025000000_fresh_schema.sql
+   supabase/migrations/20261115000000_push_notifications.sql
    ```
 
 5. **Start the development server**:
