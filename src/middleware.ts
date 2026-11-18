@@ -41,7 +41,8 @@ export async function middleware(request: NextRequest) {
   const isPublicApi =
     pathname.startsWith("/api/auth/trust-device") ||
     pathname === "/api/auth/pin" ||
-    pathname === "/api/health";
+    pathname === "/api/health" ||
+    pathname.startsWith("/api/cron/");
 
   if (pathname.startsWith("/api/") && !isPublicApi && !isTrusted) {
     const forbiddenRes = NextResponse.json(

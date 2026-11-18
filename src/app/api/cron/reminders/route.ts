@@ -57,6 +57,17 @@ async function handleReminders(request: Request) {
       userId,
     });
 
+    console.log("[cron/reminders] Dispatched:", {
+      type,
+      slot: slot || null,
+      targetDate: result.targetDate,
+      dryRun,
+      remindersCount: result.remindersCount,
+      sentSuccessCount: result.sentSuccessCount,
+      sentFailedCount: result.sentFailedCount,
+      expiredCleanedCount: result.expiredCleanedCount,
+    });
+
     return NextResponse.json(result);
   } catch (err: any) {
     return NextResponse.json(

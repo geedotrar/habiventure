@@ -199,7 +199,7 @@ export async function evaluatePendingReminders(
           title,
           body,
           url: "/?tab=today&category=cycle",
-          tag: `cycle-reminder-${activeCycle.id}`,
+          tag,
           pendingTasksCount: count,
           taskNames,
         });
@@ -261,6 +261,13 @@ export async function dispatchReminders(
         } else {
           sentFailedCount++;
           failedForUser++;
+          console.error("[reminders] Web push failed:", {
+            userId: notif.userId,
+            type: notif.type,
+            statusCode: res.statusCode,
+            expired: res.expired,
+            error: res.error,
+          });
           if (res.expired && store.deletePushSubscription) {
             await store.deletePushSubscription(sub.endpoint);
             expiredCleanedCount++;
