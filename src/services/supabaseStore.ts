@@ -615,6 +615,14 @@ export class SupabaseStore implements AppDataStore {
       throw new Error(error?.message || "Failed to create new cycle");
     }
 
+    try {
+      this.memoryReminderLogs = [];
+      await this.client
+        .from("reminder_dispatch_logs")
+        .delete()
+        .neq("id", 0);
+    } catch { }
+
     return data as Cycle;
   }
 
@@ -1368,8 +1376,13 @@ export class SupabaseStore implements AppDataStore {
     try {
       let query = this.client
         .from("reminder_dispatch_logs")
-        .delete({ count: "exact" })
-        .lt("cycle_id", activeCycleId);
+        .delete({ count: "exact" });
+
+      if (activeCycleStartDate) {
+        query = query.or(`cycle_id.lt.${activeCycleId},created_at.lt.${activeCycleStartDate}T00:00:00+07:00`);
+      } else {
+        query = query.lt("cycle_id", activeCycleId);
+      }
 
       const { error, count } = await query;
       if (!error && typeof count === "number") {

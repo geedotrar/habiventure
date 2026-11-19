@@ -341,14 +341,8 @@ export async function dispatchReminders(
     });
   }
 
-  if (!dryRun) {
-    if (dispatchLogs.length > 0 && store.saveReminderLogs) {
-      await store.saveReminderLogs(dispatchLogs);
-    }
-
-    if (activeCycle?.id && store.cleanupOldReminderLogs) {
-      await store.cleanupOldReminderLogs(activeCycle.id, activeCycle.start_date);
-    }
+  if (!dryRun && dispatchLogs.length > 0 && store.saveReminderLogs) {
+    await store.saveReminderLogs(dispatchLogs);
   }
 
   return {
