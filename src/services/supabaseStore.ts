@@ -18,6 +18,7 @@ import type {
   CycleHistoryItem,
   CycleHistoryPage,
   PushSubscriptionRecord,
+  ReminderDispatchLogRecord,
 } from "@/types/domain";
 import { INITIAL_PUNISHMENTS, INITIAL_DECISION_OPTIONS, INITIAL_TASKS, INITIAL_CYCLE, INITIAL_PAIRS } from "./seedData";
 import type { AppDataStore } from "./dataAccess";
@@ -1286,40 +1287,120 @@ export class SupabaseStore implements AppDataStore {
       if (error && error.code !== "PGRST205") {
         console.warn("Could not save push subscription to DB:", error.message);
       }
-  } catch { }
-  }
-
-  async deletePushSubscription(endpoint: string): Promise < void> {
-  this.memoryPushSubscriptions = this.memoryPushSubscriptions.filter((s) => s.endpoint !== endpoint);
-  try {
-    const { error } = await this.client.from("push_subscriptions").delete().eq("endpoint", endpoint);
-    if(error && error.code !== "PGRST205") {
-  console.warn("Could not delete push subscription from DB:", error.message);
-}
     } catch { }
   }
 
-  async getPushSubscriptionsByUserId(userId: number): Promise < PushSubscriptionRecord[] > {
-  try {
-    const { data, error } = await this.client
-      .from("push_subscriptions")
-      .select("*")
-      .eq("user_id", userId);
-    if(!error && data) {
-  return data;
-}
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    this.memoryPushSubscriptions = this.memoryPushSubscriptions.filter((s) => s.endpoint !== endpoint);
+    try {
+      const { error } = await this.client.from("push_subscriptions").delete().eq("endpoint", endpoint);
+      if (error && error.code !== "PGRST205") {
+        console.warn("Could not delete push subscription from DB:", error.message);
+      }
     } catch { }
-return this.memoryPushSubscriptions.filter((s) => s.user_id === userId);
   }
 
-  async getAllPushSubscriptions(): Promise < PushSubscriptionRecord[] > {
-  try {
-    const { data, error } = await this.client.from("push_subscriptions").select("*");
-    if(!error && data) {
-  return data;
-}
+  async getPushSubscriptionsByUserId(userId: number): Promise<PushSubscriptionRecord[]> {
+    try {
+      const { data, error } = await this.client
+        .from("push_subscriptions")
+        .select("*")
+        .eq("user_id", userId);
+      if (!error && data) {
+        return data;
+      }
     } catch { }
-return [...this.memoryPushSubscriptions];
+    return this.memoryPushSubscriptions.filter((s) => s.user_id === userId);
+  }
+
+  async getAllPushSubscriptions(): Promise<PushSubscriptionRecord[]> {
+    try {
+      const { data, error } = await this.client.from("push_subscriptions").select("*");
+      if (!error && data) {
+        return data;
+      }
+    } catch { }
+    return [...this.memoryPushSubscriptions];
+  }
+
+  private memoryReminderLogs: ReminderDispatchLogRecord[] = [];
+
+  async saveReminderLogs(logs: ReminderDispatchLogRecord[]): Promise<void> {
+    if (!logs || logs.length === 0) return;
+
+    this.memoryReminderLogs.push(...logs);
+    if (this.memoryReminderLogs.length > 200) {
+      this.memoryReminderLogs = this.memoryReminderLogs.slice(-200);
+    }
+
+    try {
+      const rows = logs.map((l) => ({
+        cycle_id: l.cycle_id || null,
+        type: l.type,
+        slot: l.slot || null,
+        user_id: l.user_id,
+        user_name: l.user_name || null,
+        target_date: l.target_date,
+        title: l.title,
+        body: l.body,
+        status: l.status,
+        status_code: l.status_code || null,
+        error_message: l.error_message || null,
+        endpoint: l.endpoint || null,
+        created_at: l.created_at || new Date().toISOString(),
+      }));
+
+      const { error } = await this.client.from("reminder_dispatch_logs").insert(rows);
+      if (error && error.code !== "PGRST205") {
+        console.warn("Could not save reminder logs to DB:", error.message);
+      }
+    } catch { }
+  }
+
+  async cleanupOldReminderLogs(activeCycleId: number, activeCycleStartDate?: string): Promise<number> {
+    if (!activeCycleId) return 0;
+
+    this.memoryReminderLogs = this.memoryReminderLogs.filter((l) => {
+      if (l.cycle_id && l.cycle_id < activeCycleId) return false;
+      return true;
+    });
+
+    try {
+      let query = this.client
+        .from("reminder_dispatch_logs")
+        .delete({ count: "exact" })
+        .lt("cycle_id", activeCycleId);
+
+      const { error, count } = await query;
+      if (!error && typeof count === "number") {
+        return count;
+      }
+    } catch { }
+    return 0;
+  }
+
+  async getReminderLogs(limit = 50, userId?: number): Promise<ReminderDispatchLogRecord[]> {
+    try {
+      let query = this.client
+        .from("reminder_dispatch_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (userId) {
+        query = query.eq("user_id", userId);
+      }
+
+      const { data, error } = await query;
+      if (!error && data) {
+        return data as ReminderDispatchLogRecord[];
+      }
+    } catch { }
+
+    return this.memoryReminderLogs
+      .filter((l) => !userId || l.user_id === userId)
+      .slice(-limit)
+      .reverse();
   }
 }
 

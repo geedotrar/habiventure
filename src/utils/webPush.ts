@@ -82,12 +82,13 @@ export async function sendWebPush(
   } catch (err: any) {
     const statusCode = err?.statusCode || err?.status;
     const isExpired = statusCode === 404 || statusCode === 410;
+    const errorBody = typeof err?.body === "string" ? err.body : err?.body ? JSON.stringify(err.body) : null;
     return {
       success: false,
       endpoint: subscription.endpoint,
       statusCode,
       expired: isExpired,
-      error: err?.message || "Push dispatch failed",
+      error: errorBody || err?.message || "Push dispatch failed",
     };
   }
 }

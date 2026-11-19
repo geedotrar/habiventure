@@ -14,6 +14,7 @@ import type {
   CycleHistoryPage,
   CycleHistoryItem,
   PushSubscriptionRecord,
+  ReminderDispatchLogRecord,
 } from "@/types/domain";
 
 const DEMO_STORAGE_KEY = "habiventure_demo_sandbox_v1";
@@ -1497,6 +1498,22 @@ class DemoStore {
 
   public async getAllPushSubscriptions(): Promise<PushSubscriptionRecord[]> {
     return (this.state.pushSubscriptions || []).slice();
+  }
+
+  private memoryReminderLogs: ReminderDispatchLogRecord[] = [];
+
+  public async saveReminderLogs(logs: ReminderDispatchLogRecord[]): Promise<void> {
+    this.memoryReminderLogs.push(...logs);
+  }
+
+  public async cleanupOldReminderLogs(activeCycleId: number): Promise<number> {
+    const before = this.memoryReminderLogs.length;
+    this.memoryReminderLogs = this.memoryReminderLogs.filter((l) => !l.cycle_id || l.cycle_id >= activeCycleId);
+    return before - this.memoryReminderLogs.length;
+  }
+
+  public async getReminderLogs(limit = 50): Promise<ReminderDispatchLogRecord[]> {
+    return this.memoryReminderLogs.slice(-limit).reverse();
   }
 }
 

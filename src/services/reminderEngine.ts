@@ -2,7 +2,13 @@ import { getTodayDateString, getWeekRange } from "@/utils/dateFormatter";
 import { sendWebPush } from "@/utils/webPush";
 import type { AppDataStore } from "./dataAccess";
 import { dataStore } from "./supabaseStore";
-import type { ReminderType, ReminderNotificationItem, Task, DailyLog } from "@/types/domain";
+import type {
+  ReminderType,
+  ReminderNotificationItem,
+  Task,
+  DailyLog,
+  ReminderDispatchLogRecord,
+} from "@/types/domain";
 
 export interface EvaluateRemindersOptions {
   store?: AppDataStore;
@@ -219,12 +225,14 @@ export async function dispatchReminders(
   const dryRun = Boolean(options.dryRun);
 
   const notifications = await evaluatePendingReminders(options);
+  const activeCycle = store.getActiveCycle ? await store.getActiveCycle() : null;
 
   let sentSuccessCount = 0;
   let sentFailedCount = 0;
   let expiredCleanedCount = 0;
 
   const details: DispatchRemindersResult["details"] = [];
+  const dispatchLogs: ReminderDispatchLogRecord[] = [];
 
   for (const notif of notifications) {
     const subscriptions = store.getPushSubscriptionsByUserId
@@ -234,43 +242,88 @@ export async function dispatchReminders(
     let sentForUser = 0;
     let failedForUser = 0;
 
-    if (!dryRun && subscriptions.length > 0) {
-      for (const sub of subscriptions) {
-        const res = await sendWebPush(
-          {
-            endpoint: sub.endpoint,
-            p256dh: sub.p256dh,
-            auth: sub.auth,
-          },
-          {
-            title: notif.title,
-            body: notif.body,
-            url: notif.url,
-            tag: notif.tag,
-            data: {
-              type: notif.type,
-              userId: notif.userId,
-              url: notif.url,
+    if (!dryRun) {
+      if (subscriptions.length === 0) {
+        dispatchLogs.push({
+          cycle_id: activeCycle?.id || null,
+          type: notif.type,
+          slot: options.slot || null,
+          user_id: notif.userId,
+          user_name: notif.userName,
+          target_date: targetDate,
+          title: notif.title,
+          body: notif.body,
+          status: "no_subscription",
+          status_code: null,
+          error_message: "No active push subscription found on any device",
+          endpoint: null,
+        });
+      } else {
+        for (const sub of subscriptions) {
+          const res = await sendWebPush(
+            {
+              endpoint: sub.endpoint,
+              p256dh: sub.p256dh,
+              auth: sub.auth,
             },
-          }
-        );
+            {
+              title: notif.title,
+              body: notif.body,
+              url: notif.url,
+              tag: notif.tag,
+              data: {
+                type: notif.type,
+                userId: notif.userId,
+                url: notif.url,
+              },
+            }
+          );
 
-        if (res.success) {
-          sentSuccessCount++;
-          sentForUser++;
-        } else {
-          sentFailedCount++;
-          failedForUser++;
-          console.error("[reminders] Web push failed:", {
-            userId: notif.userId,
-            type: notif.type,
-            statusCode: res.statusCode,
-            expired: res.expired,
-            error: res.error,
-          });
-          if (res.expired && store.deletePushSubscription) {
-            await store.deletePushSubscription(sub.endpoint);
-            expiredCleanedCount++;
+          if (res.success) {
+            sentSuccessCount++;
+            sentForUser++;
+            dispatchLogs.push({
+              cycle_id: activeCycle?.id || null,
+              type: notif.type,
+              slot: options.slot || null,
+              user_id: notif.userId,
+              user_name: notif.userName,
+              target_date: targetDate,
+              title: notif.title,
+              body: notif.body,
+              status: "success",
+              status_code: res.statusCode || 200,
+              error_message: null,
+              endpoint: sub.endpoint,
+            });
+          } else {
+            sentFailedCount++;
+            failedForUser++;
+            console.error("[reminders] Web push failed:", {
+              userId: notif.userId,
+              type: notif.type,
+              statusCode: res.statusCode,
+              expired: res.expired,
+              error: res.error,
+            });
+            dispatchLogs.push({
+              cycle_id: activeCycle?.id || null,
+              type: notif.type,
+              slot: options.slot || null,
+              user_id: notif.userId,
+              user_name: notif.userName,
+              target_date: targetDate,
+              title: notif.title,
+              body: notif.body,
+              status: "failed",
+              status_code: res.statusCode || null,
+              error_message: res.error || "Push dispatch failed",
+              endpoint: sub.endpoint,
+            });
+            if (res.expired && store.deletePushSubscription) {
+              await store.deletePushSubscription(sub.endpoint);
+              expiredCleanedCount++;
+            }
           }
         }
       }
@@ -286,6 +339,16 @@ export async function dispatchReminders(
       sentCount: sentForUser,
       failedCount: failedForUser,
     });
+  }
+
+  if (!dryRun) {
+    if (dispatchLogs.length > 0 && store.saveReminderLogs) {
+      await store.saveReminderLogs(dispatchLogs);
+    }
+
+    if (activeCycle?.id && store.cleanupOldReminderLogs) {
+      await store.cleanupOldReminderLogs(activeCycle.id, activeCycle.start_date);
+    }
   }
 
   return {

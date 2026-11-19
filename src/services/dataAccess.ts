@@ -11,6 +11,7 @@ import type {
   Pair,
   CycleHistoryPage,
   PushSubscriptionRecord,
+  ReminderDispatchLogRecord,
 } from "@/types/domain";
 
 export interface AppDataStore {
@@ -89,4 +90,8 @@ export interface AppDataStore {
   deletePushSubscription?(endpoint: string): Promise<void>;
   getPushSubscriptionsByUserId?(userId: number): Promise<PushSubscriptionRecord[]>;
   getAllPushSubscriptions?(): Promise<PushSubscriptionRecord[]>;
+
+  saveReminderLogs?(logs: ReminderDispatchLogRecord[]): Promise<void>;
+  cleanupOldReminderLogs?(activeCycleId: number, activeCycleStartDate?: string): Promise<number>;
+  getReminderLogs?(limit?: number, userId?: number): Promise<ReminderDispatchLogRecord[]>;
 }

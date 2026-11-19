@@ -152,4 +152,21 @@ export interface ReminderNotificationItem {
   taskNames: string[];
 }
 
+export interface ReminderDispatchLogRecord {
+  id?: number;
+  cycle_id?: number | null;
+  type: string;
+  slot?: string | null;
+  user_id: number;
+  user_name?: string | null;
+  target_date: string;
+  title: string;
+  body: string;
+  status: "success" | "failed" | "no_subscription";
+  status_code?: number | null;
+  error_message?: string | null;
+  endpoint?: string | null;
+  created_at?: string;
+}
+
 
