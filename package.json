@@ -9,6 +9,10 @@
     "lint": "next lint",
     "test": "vitest run"
   },
+  "allowScripts": {
+    "esbuild": true,
+    "unrs-resolver": true
+  },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
